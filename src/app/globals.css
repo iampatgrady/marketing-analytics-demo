@@ -1,14 +1,18 @@
+/* Import Work Sans from Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;600&display=swap');
 
+/* Import Tailwind base styles */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Define custom CSS variables for colors */
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
+/* Apply variables for dark mode */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -16,9 +20,16 @@
   }
 }
 
+/* Base styling for the body */
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+    color: var(--foreground);
+    background: var(--background);
+    font-family: 'Work Sans', sans-serif;
+
 }
 
+/* Optional: Style for pre tags (code blocks) */
+pre {
+   font-family: monospace, monospace;
+   white-space: pre-wrap;
+}

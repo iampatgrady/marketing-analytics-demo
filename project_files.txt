@@ -1,0 +1,1065 @@
+--- START_DIRECTORY_STRUCTURE ---
+.
+├── Dockerfile
+├── LICENSE
+├── README.md
+├── eslint.config.mjs
+├── export_files_for_llm.sh
+├── jsconfig.json
+├── next.config.mjs
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── project_files.txt
+├── public
+├── src
+│   ├── app
+│   │   ├── durable-measurement
+│   │   │   └── page.js
+│   │   ├── favicon.ico
+│   │   ├── geo-lift-studies
+│   │   │   └── page.js
+│   │   ├── globals.css
+│   │   ├── layout-server.js
+│   │   ├── layout.js
+│   │   ├── machine-learning-modeling
+│   │   │   └── page.js
+│   │   ├── mta-mmm-attribution
+│   │   │   └── page.js
+│   │   ├── page.js
+│   │   └── value-based-bidding
+│   │       └── page.js
+│   └── components
+│       └── Navigation.jsx
+└── tailwind.config.mjs
+
+10 directories, 23 files
+--- END_DIRECTORY_STRUCTURE ---
+--- START_FILE: Dockerfile ---
+# Use a Node.js base image
+FROM node:18-alpine AS builder
+
+# Set the working directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application
+COPY . .
+
+# Build the Next.js app
+RUN npm run build
+
+# Stage 2: Production image
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy production dependencies from builder
+COPY --from=builder /app/package*.json ./
+RUN npm install --production
+
+# Copy built Next.js app from the builder
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+RUN if [ -f /app/next.config.js ]; then \
+    COPY --from=builder /app/next.config.js ./; \
+fi
+
+# Expose port 3000 (default Next.js port)
+EXPOSE 3000
+
+# Command to start the application
+CMD ["npm", "start"]--- END_FILE: Dockerfile ---
+--- START_FILE: LICENSE ---
+MIT License
+
+Copyright (c) 2025 Pat Grady @iampatgrady pat.grady@adswerve.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.--- END_FILE: LICENSE ---
+--- START_FILE: README.md ---
+# Marketing Analytics Demo Application
+
+This is an interactive web application built with Next.js, designed to showcase various marketing analytics technologies. It includes demos for Durable Measurement, Machine Learning Modeling, Value-Based Bidding, MTA & MMM Attribution, and Geo & Pre/Post Lift Studies.
+
+## Features
+
+-   Interactive demos for five different marketing analytics technologies.
+-   Responsive design with a hamburger menu for navigation.
+-   Dark mode support based on OS preference.
+-   Dockerized for easy deployment.
+-   Deployment on Google Cloud Run.
+
+## Technologies
+
+-   **Next.js:** A React framework for building web applications.
+-   **Tailwind CSS:** A utility-first CSS framework.
+-   **Docker:** A platform for containerization.
+-   **Google Cloud Run:** A serverless compute platform.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+-   [Node.js](https://nodejs.org/) (version 18 or later) and npm (or yarn/pnpm).
+-   [Docker Desktop](https://www.docker.com/products/docker-desktop) (or Docker Engine).
+-   [Google Cloud SDK (gcloud CLI)](https://cloud.google.com/sdk/docs/install)
+-   A Google Cloud Platform (GCP) project.
+
+## Setup Instructions
+
+1.  **Clone the repository:**
+
+    ```bash
+    git clone [YOUR_REPOSITORY_URL]
+    cd [YOUR_REPOSITORY_NAME]
+    ```
+
+2.  **Install dependencies:**
+
+    ```bash
+    npm install
+    ```
+
+3.  **Run the development server:**
+
+    ```bash
+    npm run dev
+    ```
+
+    The application will be available at `http://localhost:3000`.
+
+## Build and Deploy with Docker and Google Cloud Run
+
+### 1. Build the Docker Image
+
+1.  Ensure you have a `Dockerfile` in the root directory of your project. If you do not, create one using these instructions:
+```dockerfile
+    # Use a Node.js base image
+    FROM node:18-alpine AS builder
+
+    # Set the working directory
+    WORKDIR /app
+
+    # Copy package.json and package-lock.json
+    COPY package*.json ./
+
+    # Install dependencies
+    RUN npm install
+
+    # Copy the rest of the application
+    COPY . .
+
+    # Build the Next.js app
+    RUN npm run build
+
+    # Stage 2: Production image
+    FROM node:18-alpine
+
+    # Set working directory
+    WORKDIR /app
+
+    # Copy production dependencies from builder
+    COPY --from=builder /app/package*.json ./
+    RUN npm install --production
+
+    # Copy built Next.js app from the builder
+    COPY --from=builder /app/.next ./.next
+    COPY --from=builder /app/public ./public
+    RUN if [ -f /app/next.config.js ]; then \
+        COPY --from=builder /app/next.config.js ./; \
+    fi
+
+    # Expose port 3000 (default Next.js port)
+    EXPOSE 3000
+
+    # Command to start the application
+    CMD ["npm", "start"]
+```
+2.  Build the Docker image, targeting the `amd64` architecture:
+
+    ```bash
+    docker build --platform linux/amd64 -t marketing-demo-app .
+    ```
+3.  Tag the image so it's ready to push to your Google Container Registry:
+    ```bash
+    docker tag marketing-demo-app gcr.io/[YOUR_PROJECT_ID]/bonfire
+    ```
+
+    Replace `[YOUR_PROJECT_ID]` with your Google Cloud project ID (e.g. `as-dev-pat`).
+    *   The tag that you use, should match the application name.
+
+### 2. Push the Docker Image to Google Container Registry (GCR)
+
+1.  Authenticate your Docker client with your Google Cloud account:
+
+    ```bash
+    gcloud auth configure-docker
+    ```
+
+2.  Push the image to GCR:
+
+    ```bash
+    docker push gcr.io/[YOUR_PROJECT_ID]/bonfire
+    ```
+
+    Replace `[YOUR_PROJECT_ID]` with your Google Cloud Project ID.
+
+### 3. Deploy to Google Cloud Run using `gcloud` CLI
+
+1.  Deploy your service using the gcloud CLI:
+
+    ```bash
+    gcloud run deploy bonfire-app \
+        --image gcr.io/[YOUR_PROJECT_ID]/bonfire \
+        --region us-central1 \
+        --allow-unauthenticated \
+        --platform managed
+    ```
+
+    Replace `[YOUR_PROJECT_ID]` with your Google Cloud project ID, and the region with your desired region.
+    *  This command will deploy your application to Cloud Run, and provide you with a URL where your service will be available.
+
+## Accessing Your Deployed Application
+
+Once your application is deployed, copy the URL provided by the `gcloud run deploy` command, and paste it into your browser.
+
+## Additional Notes
+
+-   For a production environment, consider setting up proper authentication and authorization.
+-   You can customize the Dockerfile and Cloud Run settings as needed.
+-   If you encounter any issues or errors, please refer to the Docker, Google Cloud Run, and Google Cloud SDK documentation.
+
+## Further Steps
+
+-   You can use `npm run build` to create a production build of your application.
+-   You can extend this app by connecting to an external data source, and/or displaying more complex data visualizations.
+
+## Contributing
+
+If you want to contribute to this project, please open an issue first to discuss your idea before making a pull request.
+--- END_FILE: README.md ---
+--- START_FILE: eslint.config.mjs ---
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import { FlatCompat } from "@eslint/eslintrc";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [...compat.extends("next/core-web-vitals")];
+
+export default eslintConfig;
+--- END_FILE: eslint.config.mjs ---
+--- START_FILE: jsconfig.json ---
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+--- END_FILE: jsconfig.json ---
+--- START_FILE: next.config.mjs ---
+/** @type {import('next').NextConfig} */
+const nextConfig = {};
+
+export default nextConfig;
+--- END_FILE: next.config.mjs ---
+--- START_FILE: package.json ---
+{
+  "name": "bonfire",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.7",
+    "next": "15.1.3",
+    "react": "^19.0.0",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^19.0.0",
+    "react-syntax-highlighter": "^15.6.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "esbuild": "^0.24.2",
+    "eslint": "^9",
+    "eslint-config-next": "15.1.3",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1"
+  }
+}
+--- END_FILE: package.json ---
+--- START_FILE: postcss.config.mjs ---
+/** @type {import('postcss-load-config').Config} */
+const config = {
+  plugins: {
+    tailwindcss: {},
+  },
+};
+
+export default config;
+--- END_FILE: postcss.config.mjs ---
+--- START_FILE: src/app/durable-measurement/page.js ---
+'use client'; // this is a client component
+
+ import Link from "next/link";
+ import { useState, useEffect } from 'react';
+ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+ import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+ export default function DurableMeasurement() {
+     const [tagManagementEnabled, setTagManagementEnabled] = useState(true);
+     const [dataLayerEnabled, setDataLayerEnabled] = useState(false);
+     const [rawData, setRawData] = useState({});
+     const [formattedData, setFormattedData] = useState({});
+
+     // Function to generate some simulated raw tracking data.
+     // note that, in production, this might come from an external source like an API.
+     const generateRawData = () => {
+         const now = new Date();
+         const raw = {
+             event: 'product_view',
+             product_id: Math.floor(Math.random() * 1000),
+             timestamp: now.toISOString(),
+             user_id: 'user-' + Math.floor(Math.random() * 10000),
+             page_url: '/product/123'
+         };
+         setRawData(raw);
+     };
+
+ // Function to simulate processing, and transforming, of the data
+     const processData = () => {
+         // In a real app, this is where complex data logic is applied
+         let processed = {...rawData};
+         if (tagManagementEnabled) {
+             processed.tag_management_applied = true;
+         } else {
+             processed.tag_management_applied = false;
+         }
+         if (dataLayerEnabled) {
+             processed.data_layer_applied = true;
+         } else {
+             processed.data_layer_applied = false
+         }
+         setFormattedData(processed);
+     }
+
+     // generate some data on initial render
+     useEffect(()=> {
+         generateRawData();
+     }, []);
+
+     // transform data every time the configuration or the raw data changes
+     useEffect(() => {
+         processData();
+     }, [tagManagementEnabled, dataLayerEnabled, rawData]);
+
+     // this updates the generated raw data every time the button is pressed
+     const handleUpdateData = () => {
+         generateRawData();
+     }
+
+     return (
+         <main className="flex min-h-screen flex-col items-center justify-between p-24 bg-white dark:bg-zinc-900">
+             <div>
+                 <h1 className="mb-4 text-4xl font-bold text-smart-plum dark:text-sunny-yellow">Durable Measurement</h1>
+                 <p className="mb-8 text-lg text-gray-700 dark:text-gray-300">See how data consistency is maintained with different tracking configurations.</p>
+                 <div className="mb-4">
+                     <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Configurations</h3>
+                     <label className="block mb-2 text-gray-700 dark:text-gray-300">
+                         <input
+                             type="checkbox"
+                             checked={tagManagementEnabled}
+                             onChange={(e) => setTagManagementEnabled(e.target.checked)}
+                             className="mr-2"
+                         />
+                         Tag Management
+                     </label>
+                     <label className="block mb-2 text-gray-700 dark:text-gray-300">
+                         <input
+                             type="checkbox"
+                             checked={dataLayerEnabled}
+                             onChange={(e) => setDataLayerEnabled(e.target.checked)}
+                             className="mr-2"
+                         />
+                         Data Layer
+                     </label>
+                 </div>
+                 <div className="mb-8">
+                     <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Raw Data</h3>
+                     <SyntaxHighlighter language="json" style={dracula} >
+                     {JSON.stringify(rawData, null, 2)}
+                     </SyntaxHighlighter>
+                     <button onClick={handleUpdateData} className="bg-fearless-pink hover:bg-smart-plum text-white font-bold py-2 px-4 rounded mt-2">Update Raw Data</button>
+                 </div>
+                 <div>
+                     <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Formatted Data</h3>
+                     <SyntaxHighlighter language="json" style={dracula}>
+                          {JSON.stringify(formattedData, null, 2)}
+                     </SyntaxHighlighter>
+                 </div>
+             </div>
+         </main>
+     );
+ }--- END_FILE: src/app/durable-measurement/page.js ---
+--- START_FILE: src/app/geo-lift-studies/page.js ---
+// src/app/geo-lift-studies/page.js
+'use client';
+
+import { useState } from 'react';
+import { Bar } from 'react-chartjs-2';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+} from 'chart.js';
+
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend
+);
+
+export default function GeoLiftStudies() {
+    const [campaignStatus, setCampaignStatus] = useState('before');
+
+    // Some example simulated data
+    const campaignInfo = {
+        region: "North America",
+        type: "Search Ads",
+    };
+
+    // Function to determine "lift" based on campaign phase
+    const calculateLift = () => {
+        switch (campaignStatus) {
+            case 'during':
+                return Math.floor(Math.random() * 20 + 80); // Simulate Lift between 80 and 100
+            case 'after':
+                return Math.floor(Math.random() * 50 + 10); // Simulate Lift between 10 and 50.
+            default:
+                return 0; // No Lift before campaign
+        }
+    };
+
+    const lift = calculateLift();
+
+    // Chart data
+    const chartData = {
+        labels: ['Lift'],
+        datasets: [{
+            label: 'Lift Percentage',
+            data: [lift],
+            backgroundColor: ['#FF00CE'],
+        }]
+    };
+
+    const chartOptions = {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top'
+            },
+             title: {
+                display: true,
+                text: 'Campaign Lift'
+             }
+         }
+    };
+
+
+    return (
+        <main className="flex min-h-screen flex-col items-start justify-between p-24 bg-white dark:bg-zinc-900">
+            <div>
+                 <h1 className="mb-4 text-4xl font-bold text-smart-plum dark:text-sunny-yellow">Geo & Pre/Post Lift Studies</h1>
+                <p className="mb-8 text-lg text-gray-700 dark:text-gray-300">See how we measure the impact of marketing campaigns.</p>
+
+
+                <div className="mb-4">
+                    <label htmlFor="campaignStatus" className="block text-deep-graphite dark:text-gray-300 mb-2">Campaign Status:</label>
+                    <select
+                        id="campaignStatus"
+                        value={campaignStatus}
+                        onChange={(e) => setCampaignStatus(e.target.value)}
+                        className="border p-2 rounded text-gray-800 dark:text-gray-200 dark:bg-zinc-700/50"
+                    >
+                        <option value="before">Before</option>
+                        <option value="during">During</option>
+                        <option value="after">After</option>
+                    </select>
+                </div>
+
+               <div className="mb-4">
+                    <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Campaign Results</h3>
+                   <div style={{ width: "400px", height: "300px" }}>
+                       <Bar data={chartData} options={chartOptions} />
+                   </div>
+                    <p className="text-gray-700 dark:text-gray-300">Region: {campaignInfo.region} </p>
+                    <p className="text-gray-700 dark:text-gray-300">Type: {campaignInfo.type} </p>
+                </div>
+            </div>
+        </main>
+    );
+}--- END_FILE: src/app/geo-lift-studies/page.js ---
+--- START_FILE: src/app/globals.css ---
+/* Import Work Sans from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;600&display=swap');
+
+/* Import Tailwind base styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Define custom CSS variables for colors */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* Apply variables for dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* Base styling for the body */
+body {
+    color: var(--foreground);
+    background: var(--background);
+    font-family: 'Work Sans', sans-serif;
+
+}
+
+/* Optional: Style for pre tags (code blocks) */
+pre {
+   font-family: monospace, monospace;
+   white-space: pre-wrap;
+}--- END_FILE: src/app/globals.css ---
+--- START_FILE: src/app/layout-server.js ---
+//src/app/layout-server.js
+import { Work_Sans} from 'next/font/google';
+
+const work_sans = Work_Sans({ subsets: ['latin'] });
+
+export const metadata = {
+    title: 'Marketing Analytics Demo',
+    description: 'An interactive demo of marketing analytics technologies',
+};
+
+export default function RootLayoutServer({ children }) {
+    return (
+       <html lang="en">
+            <body className={work_sans.className}>{children}</body>
+       </html>
+    );
+}--- END_FILE: src/app/layout-server.js ---
+--- START_FILE: src/app/layout.js ---
+// src/app/layout.js
+'use client';
+
+import './globals.css';
+import { useState, useEffect } from 'react';
+import RootLayoutServer from './layout-server';
+import Navigation from '@/components/Navigation';
+
+
+export default function RootLayout({ children }) {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+    useEffect(() => {
+         if (typeof window !== 'undefined') { //this conditional ensures this logic only runs in the browser
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setIsDarkMode(prefersDark);
+        }
+    }, []);
+
+    useEffect(() => {
+       // Update the class on the html element
+        if (typeof document !== 'undefined') {
+            if (isDarkMode) {
+              document.documentElement.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+            }
+          }
+       }, [isDarkMode]);
+
+    return (
+    <RootLayoutServer>
+         <Navigation/>
+            {children}
+   </RootLayoutServer>
+    )
+}--- END_FILE: src/app/layout.js ---
+--- START_FILE: src/app/machine-learning-modeling/page.js ---
+// src/app/machine-learning-modeling/page.js
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+export default function MachineLearningModeling() {
+    const [modelType, setModelType] = useState('regression');
+    const [modelWeights, setModelWeights] = useState(null);
+    const [inputData, setInputData] = useState(null);
+    const [prediction, setPrediction] = useState('');
+    const [trainingStatus, setTrainingStatus] = useState('');
+    const [progress, setProgress] = useState(0);
+
+
+    const handleTrainModel = () => {
+         setTrainingStatus('Training...');
+        setProgress(0);
+         // Simulate model training by generating random weights
+          const interval = setInterval(() => {
+              setProgress((prevProgress) => {
+               const newProgress = Math.min(prevProgress + 10, 100)
+                if (newProgress === 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        const newWeights = modelType === 'regression'
+                            ? Math.random()
+                            : [Math.random(), Math.random()];
+                        setInputData(Math.random());
+                        setModelWeights(newWeights);
+                        const newPrediction = makePrediction(newWeights, modelType, inputData);
+                        setPrediction(newPrediction);
+                        setTrainingStatus('Training Complete!');
+                   }, 100);
+                }
+              return newProgress;
+             });
+        }, 100);
+    };
+
+    const makePrediction = (weights, type, input) => {
+        if (type === 'regression') {
+            return `Predicted Value: ${ (input * weights).toFixed(2) }`;
+        } else {
+            if (input > .5) {
+                return "Predicted Class: Positive"
+            }
+            return "Predicted Class: Negative"
+        }
+    };
+
+
+    return (
+        <main className="flex min-h-screen flex-col items-center justify-between p-24 bg-white dark:bg-zinc-900">
+            <div>
+                 <h1 className="mb-4 text-4xl font-bold text-smart-plum dark:text-sunny-yellow">Machine Learning Modeling</h1>
+                <p className="mb-8 text-lg text-gray-700 dark:text-gray-300">Explore how our machine learning models work.</p>
+
+               <div className="mb-4">
+                   <label htmlFor="modelType" className="block text-deep-graphite dark:text-gray-300 mb-2">Model Type:</label>
+                    <select id="modelType" value={modelType} onChange={(e) => setModelType(e.target.value)} className="border p-2 rounded text-gray-800 dark:text-gray-200 dark:bg-zinc-700/50">
+                       <option value="regression">Regression</option>
+                        <option value="classification">Classification</option>
+                   </select>
+                </div>
+
+                <button onClick={handleTrainModel} className="bg-fearless-pink hover:bg-smart-plum text-white font-bold py-2 px-4 rounded mb-4">Train Model</button>
+
+              {trainingStatus &&
+                  <div className="mb-4">
+                      <p className="mb-2 text-gray-700 dark:text-gray-300">{trainingStatus}</p>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                           <div className="bg-fearless-pink h-2.5 rounded-full" style={{ width: `${progress}%`}}></div>
+                      </div>
+                  </div>
+              }
+
+                {modelWeights && (
+                    <div className="mb-4">
+                       <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Model Output</h3>
+                        <p className="text-gray-700 dark:text-gray-300"> <span className="font-semibold">Model Weights:</span></p>
+                        <SyntaxHighlighter language="json" style={dracula}>
+                            {JSON.stringify(modelWeights, null, 2)}
+                        </SyntaxHighlighter>
+                        {inputData &&
+                           <p className="text-gray-700 dark:text-gray-300">
+                               <span className="font-semibold">Input Data:</span>
+                             <SyntaxHighlighter language="json" style={dracula}>
+                                 {JSON.stringify(inputData, null, 2)}
+                            </SyntaxHighlighter>
+                            </p>
+                        }
+                    </div>
+               )}
+                {prediction && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Prediction</h3>
+                    <p className="text-gray-700 dark:text-gray-300">{prediction}</p>
+                  </div>
+               )}
+           </div>
+        </main>
+    );
+}--- END_FILE: src/app/machine-learning-modeling/page.js ---
+--- START_FILE: src/app/mta-mmm-attribution/page.js ---
+// src/app/mta-mmm-attribution/page.js
+'use client';
+
+import { useState } from 'react';
+import { Pie } from 'react-chartjs-2';
+import {
+    Chart as ChartJS,
+    ArcElement,
+    Tooltip,
+    Legend
+} from 'chart.js';
+
+ChartJS.register(
+    ArcElement,
+    Tooltip,
+    Legend
+);
+
+
+export default function MtaMmmAttribution() {
+    const [attributionType, setAttributionType] = useState('mta');
+
+    const channels = [
+        { id: 1, name: 'Facebook Ads', conversions: 150 },
+        { id: 2, name: 'Google Ads', conversions: 200 },
+        { id: 3, name: 'Email Marketing', conversions: 120 },
+        { id: 4, name: 'Organic Search', conversions: 80 },
+    ];
+
+    // Simulate attribution based on type
+     const attributedConversions = channels.map(channel => {
+        let attributed = channel.conversions;
+        if (attributionType === 'mta') {
+             // Simulate a last-touch model, only attribution to last channel
+              attributed = Math.floor(channel.conversions * Math.random()*.5) + (channel.conversions/2)
+
+        } else {
+             // Simulate a balanced distribution
+             attributed = Math.floor(channel.conversions * .6)
+         }
+        return { ...channel, attributedConversions: attributed };
+    });
+
+    const chartData = {
+        labels: attributedConversions.map(channel => channel.name),
+        datasets: [{
+            label: 'Attributed Conversions',
+            data: attributedConversions.map(channel => channel.attributedConversions),
+             backgroundColor: ['#FF00CE', '#653D62', '#EEE707', '#353535'],
+        }]
+    };
+
+     const chartOptions = {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top'
+            },
+             title: {
+                display: true,
+                text: 'Channel Attribution'
+             }
+         }
+    };
+
+    return (
+        <main className="flex min-h-screen flex-col items-start justify-between p-24 bg-white dark:bg-zinc-900">
+            <div>
+                  <h1 className="mb-4 text-4xl font-bold text-smart-plum dark:text-sunny-yellow">MTA & MMM Attribution</h1>
+                  <p className="mb-8 text-lg text-gray-700 dark:text-gray-300">Understand how we attribute conversions to different marketing channels.</p>
+
+
+                <div className="mb-4">
+                    <label htmlFor="attributionType" className="block text-deep-graphite dark:text-gray-300 mb-2">Attribution Type:</label>
+                    <select id="attributionType" value={attributionType} onChange={(e) => setAttributionType(e.target.value)} className="border p-2 rounded text-gray-800 dark:text-gray-200 dark:bg-zinc-700/50">
+                        <option value="mta">MTA</option>
+                        <option value="mmm">MMM</option>
+                    </select>
+                </div>
+
+                 <div className="mb-4">
+                    <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Attributed Conversions</h3>
+                    <div style={{ width: "400px", height: "300px" }}>
+                       <Pie data={chartData} options={chartOptions} />
+                   </div>
+                </div>
+            </div>
+        </main>
+    );
+}--- END_FILE: src/app/mta-mmm-attribution/page.js ---
+--- START_FILE: src/app/page.js ---
+// /src/app/page.js
+import Link from 'next/link';
+
+export default function Home() {
+    return (
+        <main className="flex min-h-screen flex-col items-start justify-between p-24 bg-white dark:bg-zinc-900">
+            <div className="flex-grow text-center">
+                <h1 className="mb-4 text-4xl font-bold text-smart-plum dark:text-sunny-yellow">Explore Our Analytics Services</h1>
+                <p className="mb-8 text-lg text-gray-700 dark:text-gray-300">Choose a project to see our technology in action.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <Link href="/durable-measurement" className="bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700/50 dark:hover:bg-zinc-800/50 p-6 rounded-lg shadow-md border-2 border-fearless-pink dark:border-sunny-yellow">
+                        <h2 className="font-semibold text-xl mb-2 text-gray-800 dark:text-gray-200">Durable Measurement</h2>
+                        <p className="text-gray-600 dark:text-gray-300">Learn how we ensure consistent data tracking.</p>
+                    </Link>
+                    <Link href="/machine-learning-modeling" className="bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700/50 dark:hover:bg-zinc-800/50 p-6 rounded-lg shadow-md border-2 border-fearless-pink dark:border-sunny-yellow">
+                         <h2 className="font-semibold text-xl mb-2 text-gray-800 dark:text-gray-200">Machine Learning Modeling</h2>
+                        <p className="text-gray-600 dark:text-gray-300">Explore our advanced predictive models.</p>
+                    </Link>
+                    <Link href="/value-based-bidding" className="bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700/50 dark:hover:bg-zinc-800/50 p-6 rounded-lg shadow-md border-2 border-fearless-pink dark:border-sunny-yellow">
+                        <h2 className="font-semibold text-xl mb-2 text-gray-800 dark:text-gray-200">Value-Based Bidding</h2>
+                        <p className="text-gray-600 dark:text-gray-300">Discover how we maximize ROI with smart bidding strategies.</p>
+                    </Link>
+                     <Link href="/mta-mmm-attribution" className="bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700/50 dark:hover:bg-zinc-800/50 p-6 rounded-lg shadow-md border-2 border-fearless-pink dark:border-sunny-yellow">
+                        <h2 className="font-semibold text-xl mb-2 text-gray-800 dark:text-gray-200">MTA & MMM Attribution</h2>
+                        <p className="text-gray-600 dark:text-gray-300">Understand the impact of your marketing channels.</p>
+                    </Link>
+                    <Link href="/geo-lift-studies" className="bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700/50 dark:hover:bg-zinc-800/50 p-6 rounded-lg shadow-md border-2 border-fearless-pink dark:border-sunny-yellow">
+                        <h2 className="font-semibold text-xl mb-2 text-gray-800 dark:text-gray-200">Geo & Pre/Post Lift Studies</h2>
+                        <p className="text-gray-600 dark:text-gray-300">See how we measure the effectiveness of your campaigns.</p>
+                    </Link>
+                </div>
+            </div>
+        </main>
+    );
+}--- END_FILE: src/app/page.js ---
+--- START_FILE: src/app/value-based-bidding/page.js ---
+// src/app/value-based-bidding/page.js
+'use client';
+
+import { useState } from 'react';
+
+export default function ValueBasedBidding() {
+    const [userValue, setUserValue] = useState(50);
+    const [currentBid, setCurrentBid] = useState(1.00);
+    const [recommendedBid, setRecommendedBid] = useState(null);
+    const [bidHistory, setBidHistory] = useState([]);
+
+
+     const handleUpdateBid = () => {
+        // This is a simplified formula, you can do a more complex calculation here.
+        const newBid = (userValue / 100 * 2.5).toFixed(2);
+        setCurrentBid(newBid);
+
+        // This is a simplified recommendation calculation
+        const recommended = (userValue / 100 * 3).toFixed(2);
+        setRecommendedBid(recommended);
+
+        // Add to bid history
+         setBidHistory(prevHistory => [...prevHistory, { value: userValue, bid: newBid, recommendedBid: recommended }])
+    };
+
+
+    return (
+        <main className="flex min-h-screen flex-col items-start justify-between p-24 bg-white dark:bg-zinc-900">
+            <div>
+                 <h1 className="mb-4 text-4xl font-bold text-smart-plum dark:text-sunny-yellow">Value-Based Bidding</h1>
+                <p className="mb-8 text-lg text-gray-700 dark:text-gray-300">See how our bidding strategies adjust based on user value.</p>
+
+                <div className="mb-4">
+                    <label htmlFor="userValue" className="block text-deep-graphite dark:text-gray-300 mb-2">User Value (0-100):</label>
+                    <input
+                        type="range"
+                        id="userValue"
+                        min="0"
+                        max="100"
+                        value={userValue}
+                        onChange={(e) => setUserValue(parseInt(e.target.value, 10))}
+                        className="w-full"
+                    />
+                    <p className="text-gray-700 dark:text-gray-300">Selected value: {userValue}</p>
+                </div>
+
+                 <div className="mb-4">
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-semibold">Current Bid:</span> ${currentBid}</p>
+                 </div>
+
+                <button onClick={handleUpdateBid} className="bg-fearless-pink hover:bg-smart-plum text-white font-bold py-2 px-4 rounded mb-4">Update Bid</button>
+
+                 {recommendedBid && (
+                   <div className="mb-4">
+                       <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Recommended Bid</h3>
+                       <p className="text-gray-700 dark:text-gray-300">
+                            ${recommendedBid}
+                         </p>
+                  </div>
+                  )}
+
+                 {bidHistory.length > 0 && (
+                   <div>
+                      <h3 className="text-xl font-semibold mb-2 text-deep-graphite dark:text-gray-200">Bid History</h3>
+                      <ul>
+                         {bidHistory.map((entry, index) => (
+                          <li key={index} className="text-gray-700 dark:text-gray-300">
+                           <span className="font-semibold">Value:</span> {entry.value} -  <span className="font-semibold">Bid:</span> ${entry.bid}  -  <span className="font-semibold">Recommended Bid:</span> ${entry.recommendedBid}
+                           </li>
+                         ))}
+                       </ul>
+                   </div>
+                )}
+
+            </div>
+        </main>
+    );
+}--- END_FILE: src/app/value-based-bidding/page.js ---
+--- START_FILE: src/components/Navigation.jsx ---
+// /src/app/components/Navigation.jsx
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+
+export default function Navigation() {
+    const [isOpen, setIsOpen] = useState(false);
+    const menuRef = useRef(null); // Create a ref for the menu
+
+    const toggleMenu = () => {
+        setIsOpen(!isOpen);
+    };
+
+    const closeMenu = () => {
+      setIsOpen(false)
+    }
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+          if (menuRef.current && !menuRef.current.contains(event.target)) {
+            setIsOpen(false);
+          }
+        };
+         // add listener on mount and clean up on unmount
+        if (isOpen) {
+           document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+           document.removeEventListener('mousedown', handleClickOutside);
+       };
+      }, [isOpen]);
+
+    return (
+        <nav className="relative font-work-sans">
+            <div className="flex items-center justify-between p-4">
+                <Link href="/" className="font-bold text-xl text-grey-800 dark:text-grey-200">
+                    Marketing Analytics Demo
+                </Link>
+                <button onClick={toggleMenu} className="lg:hidden text-grey-800 dark:text-grey-200 focus:outline-none">
+                    <svg
+                        className="h-6 w-6 fill-current"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        {isOpen ? (
+                            <path
+                                fillRule="evenodd"
+                                d="M5.293 7.293a1 1 0 011.414 0L12 12.586l5.293-5.293a1 1 0 111.414 1.414L13.414 14l5.293 5.293a1 1 0 01-1.414 1.414L12 15.414l-5.293 5.293a1 1 0 01-1.414-1.414L10.586 14 5.293 8.707a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                            />
+                        ) : (
+                            <path
+                                fillRule="evenodd"
+                                d="M4 5h16a1 1 0 010 2H4a1 1 0 110-2zm0 6h16a1 1 0 010 2H4a1 1 0 110-2zm0 6h16a1 1 0 010 2H4a1 1 0 110-2z"
+                                clipRule="evenodd"
+                            />
+                        )}
+                    </svg>
+                </button>
+            </div>
+           <div ref={menuRef} className={`lg:flex lg:items-center absolute top-16 left-0 w-full bg-grey-100 dark:bg-grey-800/50 shadow-md rounded-b-md transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[500px]' : 'max-h-0'} lg:max-h-[500px] lg:static lg:shadow-none lg:bg-transparent lg:rounded-none`}>
+                <div className="lg:flex-grow p-4 lg:p-0">
+                   <Link href="/durable-measurement" onClick={closeMenu} className="block lg:inline-block px-4 py-2 text-grey-700 hover:text-grey-900 dark:text-grey-300 dark:hover:text-grey-100 hover:bg-grey-200 dark:hover:bg-grey-700/50">
+                        Durable Measurement
+                    </Link>
+                    <Link href="/machine-learning-modeling" onClick={closeMenu} className="block lg:inline-block px-4 py-2 text-grey-700 hover:text-grey-900 dark:text-grey-300 dark:hover:text-grey-100 hover:bg-grey-200 dark:hover:bg-grey-700/50">
+                        Machine Learning Modeling
+                    </Link>
+                    <Link href="/value-based-bidding" onClick={closeMenu} className="block lg:inline-block px-4 py-2 text-grey-700 hover:text-grey-900 dark:text-grey-300 dark:hover:text-grey-100 hover:bg-grey-200 dark:hover:bg-grey-700/50">
+                        Value Based Bidding
+                    </Link>
+                    <Link href="/mta-mmm-attribution" onClick={closeMenu} className="block lg:inline-block px-4 py-2 text-grey-700 hover:text-grey-900 dark:text-grey-300 dark:hover:text-grey-100 hover:bg-grey-200 dark:hover:bg-grey-700/50">
+                        MTA & MMM Attribution
+                    </Link>
+                    <Link href="/geo-lift-studies" onClick={closeMenu} className="block lg:inline-block px-4 py-2 text-grey-700 hover:text-grey-900 dark:text-grey-300 dark:hover:text-grey-100 hover:bg-grey-200 dark:hover:bg-grey-700/50">
+                        Geo & Pre/Post Lift Studies
+                    </Link>
+                </div>
+            </div>
+        </nav>
+    );
+}--- END_FILE: src/components/Navigation.jsx ---
+--- START_FILE: tailwind.config.mjs ---
+import tailwindcss from 'tailwindcss';
+/** @type {import('tailwindcss').Config} */
+export default {
+    darkMode: 'class',
+    content: [
+        './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+        './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+        './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    ],
+    theme: {
+        extend: {
+            colors: {
+                'fearless-pink': '#FF00CE',
+                'smart-plum': '#653D62',
+                'sunny-yellow': '#EEE707',
+                'deep-graphite': '#353535',
+                'grey': {
+                    100: '#f7f7f7', //light grey
+                    200: '#e5e5e5',
+                    300: '#d4d4d4',
+                    400: '#a3a3a3',
+                    500: '#737373',
+                    600: '#525252',
+                    700: '#404040',
+                    800: '#262626',
+                    900: '#171717', //dark grey
+                }
+            },
+            fontFamily: {
+                'work-sans': ['Work Sans', 'sans-serif']
+            },
+        },
+    },
+    plugins: [],
+};--- END_FILE: tailwind.config.mjs ---

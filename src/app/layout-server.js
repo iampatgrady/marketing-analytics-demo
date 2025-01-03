@@ -1,7 +1,7 @@
-// src/app/layout-server.js
-import { Inter } from 'next/font/google';
+//src/app/layout-server.js
+import { Work_Sans} from 'next/font/google';
 
-const inter = Inter({ subsets: ['latin'] });
+const work_sans = Work_Sans({ subsets: ['latin'] });
 
 export const metadata = {
     title: 'Marketing Analytics Demo',
@@ -11,7 +11,7 @@ export const metadata = {
 export default function RootLayoutServer({ children }) {
     return (
        <html lang="en">
-            <body className={inter.className}>{children}</body>
+            <body className={work_sans.className}>{children}</body>
        </html>
     );
 }
